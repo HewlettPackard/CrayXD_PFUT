@@ -484,14 +484,13 @@ def UpdateDetails(ip, update_list, login_username, login_password, Pre_Ver, Mode
         find_HostName = False
         find_IP = True
         update_list[index]['IP Address'] = find_in_target_list(find_HostName, find_IP, ip, target_list)
-        #print("IP Address", update_list[index]['IP Address'])
+
     else:
         update_list[index]['IP Address'] = ip
         find_HostName = True
         find_IP = False
         update_list[index]['HostName'] = find_in_target_list(find_HostName, find_IP, ip, target_list)
-        #print("hostName: " + str(update_list[index]['HostName']))
-    #print(update_list)
+       
     try:
         response = REST_OBJ.get('/redfish/v1/UpdateService/FirmwareInventory/'+target)
         data = response.dict
@@ -500,12 +499,12 @@ def UpdateDetails(ip, update_list, login_username, login_password, Pre_Ver, Mode
             Status = "Success"
         elif Update_Nature == "Same" and Post_Ver == Pre_Ver:
             if target == "BMC":
-                if ip in bmc_success_status:
+                if ip in bmc_success_status or find_in_target_list(find_HostName, find_IP, ip, target_list) in bmc_success_status:
                     Status = "Success"
                 else:
                     Status = "Fail"
             if target == "BIOS":
-                if ip in bios_success_status and ip in chassis_reset_status and ip in system_reset_status:
+                if (ip in bios_success_status and ip in chassis_reset_status and ip in system_reset_status) or (find_in_target_list(find_HostName, find_IP, ip, target_list) in bios_success_status and find_in_target_list(find_HostName, find_IP, ip, target_list) in chassis_reset_status  and find_in_target_list(find_HostName, find_IP, ip, target_list) in system_reset_status):
                     Status = "Success"
                 else:
                     Status = "Fail"
@@ -577,6 +576,7 @@ def FTD_duplicates(firmwareType, firmware_lines, model_count, firmware_details):
 
     return firmware_details
 
+
 #update_BMC is wrapper funtion that parses FirmwareDeploy.txt and ip/hostname along with its credentials
 #and calls final_bmc to do update, this function also returns Update Status report
 def update_BMC(update_list, target_list, ip_list, filename,choice_Force):
@@ -607,18 +607,33 @@ def update_BMC(update_list, target_list, ip_list, filename,choice_Force):
                     if checkFile(bmc_file):
                         if(existing_Version != firmware_detail[0] or choice_Force ):
                             flag=True
-                            print("INFO: Update Proceeding for: "+ip)
-                            ip_list[ip]["Pre-Ver"] = existing_Version
-                            ip_list[ip]["Model"] = model_ip
+                            try:
+                                ip_list[ip]["Pre-Ver"] = existing_Version
+                                ip_list[ip]["Model"] = model_ip
+                            except:
+                                ip_list[IP_HostName[ip]]["Pre-Ver"]=existing_Version
+                                ip_list[IP_HostName[ip]]["Model"]=model_ip
                             if existing_Version == firmware_detail[0]:
-                                ip_list[ip]["Update_Nature"] = "Same"
+                                try:
+                                    ip_list[ip]["Update_Nature"] = "Same"   
+                                except:
+                                    ip_list[IP_HostName[ip]]["Update_Nature"] = "Same"
                             else:
-                                ip_list[ip]["Update_Nature"] = "Not Same"
-                            thread = threading.Thread(target = final_bmc, args = (ip, ip_list_cpy[ip]["user"], ip_list_cpy[ip]["password"], bmc_file ,bmc_success_status))
+                                try:
+                                    ip_list[ip]["Update_Nature"] = "Not Same"
+                                except:
+                                    ip_list[IP_HostName[ip]]["Update_Nature"] = "Not Same"
+                            try:
+                                thread = threading.Thread(target = final_bmc, args = (ip, ip_list_cpy[ip]["user"], ip_list_cpy[ip]["password"], bmc_file ,bmc_success_status))
+                            except:
+                                thread = threading.Thread(target = final_bmc, args = (IP_HostName[ip], ip_list_cpy[IP_HostName[ip]]["user"], ip_list_cpy[IP_HostName[ip]]["password"], bmc_file ,bmc_success_status))
                             thread.start()
                             threads.append(thread)
-                            #deleting ip from ip_list_cpy to avoid reiteration
-                            del ip_list_cpy[ip]
+                            try:
+                                #deleting ip from ip_list_cpy to avoid reiteration
+                                del ip_list_cpy[ip]
+                            except:
+                                del ip_list_cpy[IP_HostName[ip]]
                         else:
                             print("WARNING: Update is halted because Force argument is not set as the version is same as suggested for: "+ ip )
                     else:
@@ -638,7 +653,10 @@ def update_BMC(update_list, target_list, ip_list, filename,choice_Force):
     for ipadd in ip_list.keys():
         key = "Pre-Ver"
         if key in ip_list[ipadd].keys():
-            thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[ipadd]["user"], ip_list[ipadd]["password"], ip_list[ipadd]["Pre-Ver"], ip_list[ipadd]["Model"],ip_list[ipadd]["Update_Nature"],"BMC",bmc_success_status,[],[],[]))
+            try:
+                thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[ipadd]["user"], ip_list[ipadd]["password"], ip_list[ipadd]["Pre-Ver"], ip_list[ipadd]["Model"],ip_list[ipadd]["Update_Nature"],"BMC",bmc_success_status,[],[],[]))
+            except:
+                thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[IP_HostName[ipadd]]["user"], ip_list[IP_HostName[ipadd]]["password"], ip_list[IP_HostName[ipadd]]["Pre-Ver"], ip_list[IP_HostName[ipadd]]["Model"],ip_list[IP_HostName[ipadd]]["Update_Nature"],"BMC",bmc_success_status,[],[],[]))
             thread.start()
             threads.append(thread)
     for thread in threads:
@@ -677,17 +695,34 @@ def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,ch
                     if checkFile(bios_file):
                         if(existing_Version != firmware_detail[0] or choice_Force):
                             flag=True
-                            print("INFO: Update Proceeding for: "+ip)
-                            ip_list[ip]["Pre-Ver"] = existing_Version
-                            ip_list[ip]["Model"] = model_ip
+                            #print("INFO: Update Proceeding for: "+ip)
+                            try:
+                                ip_list[ip]["Pre-Ver"] = existing_Version
+                                ip_list[ip]["Model"] = model_ip
+                            except:
+                                ip_list[IP_HostName[ip]]["Pre-Ver"]=existing_Version
+                                ip_list[IP_HostName[ip]]["Model"]=model_ip
+                                
                             if existing_Version == firmware_detail[0]:
-                                ip_list[ip]["Update_Nature"] = "Same"
+                                try:
+                                    ip_list[ip]["Update_Nature"] = "Same"
+                                except:
+                                    ip_list[IP_HostName[ip]]["Update_Nature"] = "Same"
                             else:
-                                ip_list[ip]["Update_Nature"] = "Not Same"
-                            thread = threading.Thread(target = final_bios, args = (ip, ip_list_cpy[ip]["user"], ip_list_cpy[ip]["password"], bios_file , bios_success_status))
+                                try:
+                                    ip_list[ip]["Update_Nature"] = "Not Same"
+                                except:
+                                    ip_list[IP_HostName[ip]]["Update_Nature"] = "Not Same"
+                            try:
+                                thread = threading.Thread(target = final_bios, args = (ip, ip_list_cpy[ip]["user"], ip_list_cpy[ip]["password"], bios_file , bios_success_status))
+                            except:
+                                thread = threading.Thread(target = final_bios, args = (IP_HostName[ip], ip_list_cpy[IP_HostName[ip]]["user"], ip_list_cpy[IP_HostName[ip]]["password"], bios_file , bios_success_status))
                             thread.start()
                             threads.append(thread)
-                            del ip_list_cpy[ip]
+                            try:
+                                del ip_list_cpy[ip]
+                            except:
+                                del ip_list_cpy[IP_HostName[ip]]
                         else:
                             print("WARNING: Update is halted because Force argument is not set as the version is same as suggested for: "+ ip )
                     else:
@@ -706,7 +741,6 @@ def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,ch
                 if len(val)>2 and k in bios_success_status: #only do chassis reset/system reset if bios is flashed successfully
                     reset_list[k]=val
             print("INFO: Sleeping 5 minutes, Working on BIOS Update in the Background")
-            #print("reset_list",reset_list)
             time.sleep(300)
             Power_Cycling(reset_list,chassis_reset_status,system_reset_status)
             print("INFO: Sleeping 5 minutes allow Power-Cycle to complete and Update to Reflect")
@@ -715,7 +749,10 @@ def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,ch
             for ipadd in ip_list.keys():
                 key = "Pre-Ver"
                 if key in ip_list[ipadd].keys():
-                    thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[ipadd]["user"], ip_list[ipadd]["password"], ip_list[ipadd]["Pre-Ver"],ip_list[ipadd]["Model"],ip_list[ipadd]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status))
+                    try:
+                        thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[ipadd]["user"], ip_list[ipadd]["password"], ip_list[ipadd]["Pre-Ver"],ip_list[ipadd]["Model"],ip_list[ipadd]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status))
+                    except:
+                        thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[IP_HostName[ipadd]]["user"], ip_list[IP_HostName[ipadd]]["password"], ip_list[IP_HostName[ipadd]]["Pre-Ver"],ip_list[IP_HostName[ipadd]]["Model"],ip_list[IP_HostName[ipadd]]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status))
                     thread.start()
                     threads.append(thread)
             for thread in threads:
@@ -960,5 +997,4 @@ Multiple Modes:
 
     else:
         print("ERROR: Give parameters for report or update, use --help for more information")
-
 
