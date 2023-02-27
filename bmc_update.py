@@ -38,6 +38,7 @@ def final_bmc(BMC_IP,USER,PWD,BMC_HPM,bmc_success_status):
         print(sys.exc_info())
         return 
 
+    print("INFO: BMC Update Proceeding for ",BMC_IP)
     print("INFO: "+BMC_IP+" BMC Update v1.1")
     Status = ""
     LastStatus = ""
@@ -62,8 +63,8 @@ def final_bmc(BMC_IP,USER,PWD,BMC_HPM,bmc_success_status):
                 break
             if Update_Status=="Preparing":
                 Status = "Preparing"
-            if Update_Status=="VerifingFirmware":
-                Status = "VerifingFirmware"
+            if Update_Status=="VerifyingFirmware":
+                Status = "VerifyingFirmware"
             if Update_Status=="Downloading":
                 Status = "Downloading"   
             if LastStatus!=Status:
