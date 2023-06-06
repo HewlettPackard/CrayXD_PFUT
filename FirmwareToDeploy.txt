@@ -1,1 +1,0 @@
-#Model Name(Necessary);Firmware Type(Necessary);Firmware Version(Necessary);File Name(Necessary)
