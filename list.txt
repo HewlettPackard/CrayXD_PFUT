@@ -1,1 +1,1 @@
-#IP/Host Name(Necessary);User Name(Optional);Password(Optional)
+#IP/Host Name/FQDN(Necessary);User Name(Optional);Password(Optional)
