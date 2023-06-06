@@ -21,7 +21,7 @@ def file_processing(filename, operation):
                     if len(ip_split) > 2 :
                         ip = ip_split[0]
                         if ip=="":
-                            print("INFO: IP missing in line %s" % line)
+                            print("INFO: IP_HostName_FQDN is missing in line %s" % line)
                             continue
                         if operation == "add":
                             username = ip_split[1]
@@ -31,24 +31,24 @@ def file_processing(filename, operation):
                                 ip_list[ip]["username"] = username
                                 ip_list[ip]["password"] = password
                             else:
-                                print("INFO: For " + ip_split[0] + " ';' is added in the input file and either Username/PWD or both is not mentioned use --help for more info")
+                                print("INFO: For " + ip_split[0] + " ';' is added in the input file and either Username or Password or both is not mentioned use --help for more info")
                         else:
                             del_list.append(ip)
                     elif len(ip_split)==2:
                         ip = ip_split[0]
                         if ip == "":
-                            print("INFO: IP missing in line %s"%line)
+                            print("INFO: IP_HostName_FQDN is missing in line %s"%line)
                             continue
                         if operation == "add":
-                            print("INFO: For " + ip_split[0] + " ';' is added in the input file and either Username/PWD or both is not mentioned use --help for more info")
+                            print("INFO: For " + ip_split[0] + " ';' is added in the input file and either Username or Password or both is not mentioned use --help for more info")
                         elif operation == "delete":
                             del_list.append(ip)
                     else:
-                        print("INFO: For " + ip_split[0] + " ';' is added in the input file and either Username/PWD or both is not mentioned use --help for more info")
+                        print("INFO: For " + ip_split[0] + " ';' is added in the input file and either Username or Password or both is not mentioned use --help for more info")
                 else:
                     ip = ip_row
                     if operation == "add":
-                        print("INFO: For "+ip+" has missing Username/PWD or both in the input file use --help for more info")
+                        print("INFO: For "+ip+" has missing Username or Password or both in the input file use --help for more info")
                     elif operation == "delete":
                         del_list.append(ip)
 
@@ -57,23 +57,23 @@ def file_processing(filename, operation):
         data = pd.read_csv(filename)
         length_framework = len(data)
         if operation == "add":
-            if 'User' in data.columns and 'Password' in data.columns and 'IP' in data.columns:
+            if 'Username' in data.columns and 'Password' in data.columns and 'IP_HostName_FQDN' in data.columns:
                 for i in range (0,length_framework) :
-                    ip = data.IP[i]
+                    ip = data.IP_HostName_FQDN[i]
                     if ip=="":
                         continue
-                    if(pd.isna(data.User[i]) or pd.isna(data.Password[i]) ): #username or password any is empty!!
-                        print( "INFO: "+ip+" has missing Username/PWD or both in .csv file")
+                    if(pd.isna(data.Username[i]) or pd.isna(data.Password[i]) ): #username or password any is empty!!
+                        print( "INFO: "+ip+" has missing Username or Password or both in .csv file")
                     else: #if both are not empty
                         ip_list[ip] = {}
-                        ip_list[ip]["username"] = data.User[i]
+                        ip_list[ip]["username"] = data.Username[i]
                         ip_list[ip]["password"] = data.Password[i]
             else:
-                print("ERROR: Invalid column names Password,User and IP are column names")
+                print("ERROR: Invalid column names IP_HostName_FQDN,Username,Password are column names")
         elif operation == "delete":
-            if 'IP' in data.columns:
+            if 'IP_HostName_FQDN' in data.columns:
                 for i in range(0,length_framework):
-                    ip = data.IP[i]
+                    ip = data.IP_HostName_FQDN[i]
                     if ip=="":
                         continue
                     else:
@@ -91,19 +91,19 @@ existingIPEntries = []
 ip_list = {}
 toprompt = []
 tableName = "IP_List_Details"
-colList = [["IP","TEXT"],["Username","TEXT"],["Password","TEXT"]]
+colList = [["IP_HostName_FQDNs","TEXT"],["Username","TEXT"],["Password","TEXT"]]
 
 parser = argparse.ArgumentParser(description="",formatter_class=argparse.RawTextHelpFormatter)
 parser.version = '1.1'
 
 parser.add_argument('-f','--filename', action='store', help='''Text file from 
-1. which IP/Hostnames and the credentials are to be added to the database if \"Add\" is selected
-2. which IP/Hostnames are to be deleted from the database if \"Delete\" is selected''')
+1. which IP_HostName_FQDNs and the credentials are to be added to the database if \"Add\" is selected
+2. which IP_HostName_FQDNs are to be deleted from the database if \"Delete\" is selected''')
 
 parser.add_argument('-o','--operation',action='store',help='''Multiple operations.
-1. -o add - Update the database with IP/Hostnames entries
-2. -o delete - Delete IP/Hostnames entries from the database
-3. -o view - View IP/Hostnames entries in the database''')
+1. -o add - Update the database with IP_HostName_FQDNs entries
+2. -o delete - Delete IP_HostName_FQDNs entries from the database
+3. -o view - View IP_HostName_FQDNs entries in the database''')
 
 args = parser.parse_args()
 operation = ""
@@ -125,7 +125,7 @@ if args.operation.lower()!="add" and args.operation.lower()!="delete" and args.o
     print("ERROR: Invalid operation chosen... exiting")
     sys.exit()
 elif args.operation.lower()=="view" and args.filename:
-    print("Invalid Input... exiting\n INFO: VIEW operation does not need any input file.. Please try without giving file input to perform \"View\" operation")
+    print("ERROR: Invalid Input... exiting\n INFO: VIEW operation does not need any input file.. Please try without giving file input to perform \"View\" operation")
     sys.exit()
 else:
     args.operation = args.operation.lower()
@@ -151,19 +151,19 @@ try:
         existingIPEntries.append(entry[1])
     if existingIPEntries != [] and args.operation!="view":
         print()
-        print("INFO: Before performing any database operation, IP/Hostname entries in database are ", end="")
+        print("INFO: Before performing any database operation, IP_HostName_FQDNs entries in database are ", end="")
         print(*existingIPEntries,sep=", ")
         print()
     if existingIPEntries == []:
         print("INFO: Before performing any database operation, Database is empty!!")
     while True and args.operation=="add":
         if not args.filename:
-            print("Enter IP Address or Hostname to be added/updated to the database or Enter 'q' to quit")
+            print("Enter IP_HostName_FQDNs to be added/updated to the database or Enter 'q' to quit")
             ip = input()
             if ip.lower() =='q':
                 break
             if ip=="":
-                print("WARNING: IP Address/Hostname cannot be empty.")
+                print("WARNING: IP_HostName_FQDNs cannot be empty.")
                 continue
             if ip not in existingIPEntries:
                 username = input("Enter %s Username: " %ip)
@@ -172,7 +172,7 @@ try:
                     insertList = [ip,username,password] 
                     obj.insertIntoTable(tableName, insertList, commit = True)
                 else:
-                    print("WARNING: Missing credentials for "+ ip +" will not be appended to database")
+                    print("WARNING: Missing credentials for "+ ip +", and so will not be appended to database")
             else:
                 print("INFO: Given "+ip+" is already in the database and will be updated with the following given latest credentials.")
                 username = input("Enter %s Username: " %ip)
@@ -182,7 +182,7 @@ try:
                     obj.updateInTable(tableName, existingIPEntries.index(ip), "Password", password, commit = True, raiseError = True)
                     updated_credentials.append(ip)
                 else:
-                    print("WARNING: Missing Credentials/Username for "+ip + " ,will not be updated in db")
+                    print("WARNING: Missing Credentials Username or Password for "+ip + " , and so will not be updated in database")
         else:
             filename = args.filename
             ip_list = file_processing(filename,"add")
@@ -210,7 +210,7 @@ try:
     for entry in existingTableEntries:
         existingIPEntries.append(entry[1])
     if len(updated_credentials)>0:
-        print("\nNOTE: The credentials of the following IPs/HostNames were updated successfully in the database: ",end="")
+        print("\nINFO: The credentials of the following IP_HostName_FQDNs were updated successfully in the database: ",end="")
         print(*updated_credentials,sep=", ")
     if existingIPEntries != []:
         deleted_ips = []
@@ -218,7 +218,7 @@ try:
         while True and args.operation=="delete":
             table_entries = obj.getDataFromTable(tableName , raiseConversionError = True , omitID = False)[1]
             if not args.filename:
-                ip = input("Enter the IP/Hostname to be deleted or Enter 'q' to quit: ")
+                ip = input("Enter the IP_HostName_FQDNs to be deleted or Enter 'q' to quit: ")
                 if ip.lower()=="q":
                     break
                 else:
@@ -236,14 +236,14 @@ try:
                         obj.deleteDataInTable(tableName, existingIPEntries.index(ip), commit = True , raiseError = True , updateId = False)
                         deleted_ips.append(ip)
                     except:
-                        print("WARNING: Wrong input ",ip," is given or there is no given entry in database.. Please try again")
+                        print("WARNING: Wrong input",ip,"is given or there is no given entry in database.. Please try again")
                         if ip not in deleted_ips: failed_to_delete_ips.append(ip)
                 break
         if len(deleted_ips)>0:
-            print("INFO: The following IPs/HostNames are deleted successfully from the database: ", end="")
+            print("INFO: The following IP_HostName_FQDNs are deleted successfully from the database: ", end="")
             print(*deleted_ips, sep=", ")
         if len(failed_to_delete_ips)>0:
-            print("WARNING: The following IPs/HostNames cannot be deleted from the database as there are no entries of these IPs/HostNames in the database: ", end="")
+            print("WARNING: The following IP_HostName_FQDNs cannot be deleted from the database as there are no entries of these IP_HostName_FQDNs in the database: ", end="")
             print(*failed_to_delete_ips, sep=", ")
         obj.updateIDs(tableName , commit = True)
         existingTableEntries = obj.getDataFromTable(tableName , raiseConversionError = True , omitID = False)[1] #[[0,"IP1","u1","p1"],[1,"IP2","u2","p2"],[2,"IP3","u3","p3"]]
@@ -252,7 +252,7 @@ try:
             existingIPEntries.append(entry[1])
         if existingIPEntries != []:
             print()
-            print("INFO: Final IP/Hostname entries in database are ", end="")
+            print("INFO: Final IP_HostName_FQDNs entries in database are ", end="")
             print(*existingIPEntries,sep=", ",end="")
             print()
         else:
