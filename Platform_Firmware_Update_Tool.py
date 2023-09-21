@@ -989,7 +989,7 @@ The '-F' option will have to be set for force install
 """
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=description_Details_v1,formatter_class=argparse.RawTextHelpFormatter)
-    parser.version = '1.1'
+    parser.version = '2.1'
     parser.add_argument('-p', '--password', action='store', help="session password, this can be used when all nodes have common password")
     parser.add_argument('-u', '--username', action='store', help="session username, this can be used when all nodes have common username")
     parser.add_argument('-t', '--target', action='store', help='''Target IP_HostName_FQDN for report or Update.
