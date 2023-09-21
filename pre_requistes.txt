@@ -5,3 +5,4 @@ Python3 (Version 3.6.13 and above)  https://www.python.org/downloads/
 Pandas module for Python (Version 1.1.5) https://pypi.org/project/pandas/1.1.5/  
 Redfish module for Python (Version 3.1.6) https://pypi.org/project/redfish/3.1.6/
 pysqlitecipher module for Python (Version  0.22) ( pip install pysqlitecipher==0.22)
+Jinja2 module for Python https://pypi.org/project/Jinja2/
