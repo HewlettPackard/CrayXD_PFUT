@@ -344,7 +344,7 @@ def target_Processing(target, filename="list.txt"):
 #Node Discovery Report has IP Address,host Name,Server Model obtained when discovery=true
 #Node Inventory Report has IP Address,host Name,Server Model,BMC Version,BIOS Version obtained when inventory=true
 #All Firmware Inventory Report has all the Firmware details obtained when all=true
-def get_FirmwareInventory(ip, target_list, login_username, login_password, all, discovery, inventory ):
+def get_FirmwareInventory(ip, target_list, login_username, login_password, all, discovery, inventory):
     try:
         REST_OBJ = redfish.redfish_client(base_url='https://'+ip, username=login_username, password=login_password, default_prefix='/redfish/v1')
         REST_OBJ.login(auth="session")
@@ -379,13 +379,18 @@ def get_FirmwareInventory(ip, target_list, login_username, login_password, all, 
                 req1 = REST_OBJ.get(api1)
                 data1 = req1.dict
                 value1 = data1[u'Name']
-                value2 = data1[u'Version']
+                try:
+                    value2 = data1[u'Version']
+                except:
+                    value2 = "NA"
                 if not discovery:
                     if all:
                         if value1 == "BMCImage1":
                            arr["BMC Ver"] = value2 
                         elif value1 == "BMCImage2":
-                           arr["BMC Recovery Ver"] = value2 
+                           arr["BMC Backup Ver"] = value2 
+                        elif value1 == "BIOS2":
+                            arr["BIOS Backup Ver"] = value2 
                         else:
                             arr[value1 + " Ver"] = value2
                     elif 'BIOS' in value1.upper() or 'BMC' in value1.upper() or search("BIOS", value1.upper()):
@@ -398,9 +403,8 @@ def get_FirmwareInventory(ip, target_list, login_username, login_password, all, 
                             target_list[index].update(arr)
             except:
                 pass
-
             target_list[index].update(arr)
-
+       
     except:
         print("WARNING: Error in getting FirmwareInventory details for "+ip)
 
@@ -422,40 +426,50 @@ def get_FirmwareInventory(ip, target_list, login_username, login_password, all, 
                         api4 = oid4.get('@odata.id')
                         req4= REST_OBJ.get(api4)
                         data5 = req4.dict
-                        if "IPv4Addresses" in data5 and "HostName" in data5 and "FQDN" in data5:
+                        # #print("data5 is",data5)
+                        # if "FQDN" not in data5:
+                        #     target_list[index]['FQDN']="NA"
+                        if "IPv4Addresses" in data5 and "HostName" in data5:
                             #Given input is HostName or FQDN
-                            if target_list[index]['IP Address'] == "" and (data5["HostName"]!=target_list[index]['HostName'] and data5["FQDN"]!=target_list[index]['FQDN']):
+                            if target_list[index]['IP Address'] == "" and data5["HostName"]!=target_list[index]['HostName'] and "FQDN" not in data5:
                                 found=False
                             #If input given is HostName or FQDN
                             elif target_list[index]['IP Address'] == "":
+                                #print("in 445")
                                 if data5["HostName"]==target_list[index]['HostName']:
                                     target_list[index]['IP Address'] = data5["IPv4Addresses"][0]["Address"]
                                     if target_list[index]['IP Address']  not in IP_HostName_FQDN.keys():
-                                        #print("line 420: ",target_list[index]['IP Address'])
-                                        #print("target_list ", target_list)
                                         IP_HostName_FQDN[target_list[index]['IP Address']]={}
                                         IP_HostName_FQDN[target_list[index]['IP Address']]['HostName'] = data5["HostName"]     
-                                        IP_HostName_FQDN[target_list[index]['IP Address']]['FQDN']=data5['FQDN'] 
-                                    target_list[index]['FQDN']=data5['FQDN']          
+                                        if "FQDN" in data5: IP_HostName_FQDN[target_list[index]['IP Address']]['FQDN']=data5['FQDN'] 
+                                        else: IP_HostName_FQDN[target_list[index]['IP Address']]['FQDN']= "NA"
+                                    if "FQDN" in data5:target_list[index]['FQDN']=data5['FQDN']          
                                     found=True
-                                elif data5["FQDN"]==target_list[index]['FQDN']:
+                                elif "FQDN" in data5 and data5["FQDN"]==target_list[index]['FQDN']:
                                     target_list[index]['IP Address'] = data5["IPv4Addresses"][0]["Address"]
                                     if target_list[index]['IP Address']  not in IP_HostName_FQDN.keys():
                                         IP_HostName_FQDN[target_list[index]['IP Address']]={}
                                         IP_HostName_FQDN[target_list[index]['IP Address']]["HostName"] = data5['HostName']   
                                         IP_HostName_FQDN[target_list[index]['IP Address']]["FQDN"]=data5["FQDN"]
+                                    #print(IP_HostName_FQDN)
                                     target_list[index]['HostName']=data5['HostName']         
+                                    #print(target_list)
                                     found=True
                             #If input given is IP
                             elif  target_list[index]['IP Address'] != "":
                                 if data5["IPv4Addresses"][0]["Address"]==target_list[index]['IP Address']:
                                     target_list[index]['HostName'] = data5["HostName"]
-                                    target_list[index]['FQDN']=data5["FQDN"]
+                                    if "FQDN" in data5: target_list[index]['FQDN']=data5["FQDN"]
+                                    else: target_list[index]['FQDN']='NA'
                                     if target_list[index]['IP Address']  not in IP_HostName_FQDN.keys():
                                         IP_HostName_FQDN[target_list[index]['IP Address']]={}
                                         IP_HostName_FQDN[target_list[index]['IP Address']]["HostName"] = data5["HostName"]
-                                        IP_HostName_FQDN[target_list[index]['IP Address']]["FQDN"] = data5["FQDN"]
+                                        if "FQDN" in data5: IP_HostName_FQDN[target_list[index]['IP Address']]["FQDN"] = data5["FQDN"]
+                                        else: IP_HostName_FQDN[target_list[index]['IP Address']]['FQDN']= "NA"
                                     found=True
+                        elif "IPv4Addresses" in data5 and "HostName" not in data5:
+                            print("ERROR: Missing hostname for ",target_list[index]['IP Address'])
+                            print("Skipping report/update. Please set the hostname and try again")
                         if found:break
                     if found:break
                 if found:break
@@ -482,7 +496,7 @@ def get_FirmwareInventory(ip, target_list, login_username, login_password, all, 
                     model = 'None'
             else:
                 model = 'None'
-            if 'BiosVersion' in data7 and (inventory or all):
+            if 'BiosVersion' in data7 and (not discovery):
                 target_list[index]["BIOS Ver"] = data7[u'BiosVersion'] 
 
             models.insert(sys_count, model)
@@ -507,12 +521,16 @@ def find_in_target_list(find_HostName, find_IP, find_FQDN, ip, target_list):
     
 
 #Gets Status Details after Firmware Update
-def UpdateDetails(ip, update_list, login_username, login_password, Pre_Ver, Model,Update_Nature,target,bmc_success_status,bios_success_status,chassis_reset_status,system_reset_status):
-    if Model == "HPE Cray XD670" :
-        if target == "BMC" :
-            target = "BMCImage1"
-      #  elif target == "BIOS":
-       #     target = "BIOS"
+def UpdateDetails(ip, update_list, login_username, login_password, Pre_Ver, Model,Update_Nature,target,bmc_success_status,bios_success_status,chassis_reset_status,system_reset_status,backup_image):
+    if Model == "HPE Cray XD670":
+        if target == "BMC":
+            if not backup_image:
+                target = "BMCImage1"
+            else:
+                target = "BMCImage2"
+        elif target == "BIOS":
+            if backup_image:
+                target = "BIOS2"
 
     arr={}
     try:
@@ -554,11 +572,15 @@ def UpdateDetails(ip, update_list, login_username, login_password, Pre_Ver, Mode
         else:
             response = REST_OBJ.get('/redfish/v1/UpdateService/FirmwareInventory/'+target)
             data = response.dict
-            Post_Ver = data[u'Version']
+            try:
+                Post_Ver = data[u'Version']
+            except:
+                Post_Ver = "NA"
+                print("WARNING: The version of BIOS Backup Firmware is not getting reflected in",ip,"FirmwareInventory/BIOS2 API. Hence, setting the Post-Ver to 'NA'")
         if Post_Ver != Pre_Ver and Update_Nature == "Not Same":
             Status = "Success"
-        elif Update_Nature == "Same" and Post_Ver == Pre_Ver:
-            if "BMC" in target:
+        elif Update_Nature == "Same" and Post_Ver == Pre_Ver and Post_Ver!="NA":
+            if "BMC" in target: #be it Image1 or Image2
                 if ip in bmc_success_status or find_in_target_list(find_HostName, find_IP, find_FQDN, ip, target_list) in bmc_success_status:
                     Status = "Success"
                 else:
@@ -606,19 +628,33 @@ def target_duplicates(filename, lines, delimiter):
 
 
 #find duplicates of FirmwareToDeploy.txt having different firmware version details for same model
-def FTD_duplicates(firmwareType, firmware_lines, model_count, firmware_details):
+def FTD_duplicates(firmwareType, firmware_lines, model_count, firmware_details, backup_image):
     firmware_info =  {}
     duplicates = []
     for line in firmware_lines:
+        line=line.strip()
         iscomment = line.startswith('#')
         if not iscomment and line.strip() != "":
             model_name, firmware_type, firmware_version, file_name_org = line.split(';')
-            if firmware_type.upper() == firmwareType:
-                if model_name in model_count:
-                    model_count[model_name] += 1
-                else:
-                    model_count[model_name] = 1
-                    firmware_info[model_name] = [firmware_version, file_name_org]
+            if backup_image:
+                if firmware_type.upper() == firmwareType and model_name=="HPE Cray XD670":
+                    if model_name in model_count:
+                        model_count[model_name] += 1
+                        print("**** ERROR: Exiting...As there is more than one entry for HPE Cray XD670 model. Please make sure that there is only one entry for HPE Cray XD670 model")
+                        sys.exit()
+                    else:
+                        model_count[model_name] = 1
+                        firmware_info[model_name] = [firmware_version, file_name_org]
+                        if (not "backup" in file_name_org):
+                            print("Exiting as the file should be a backup hpm for HPE Cray XD670 models when backup_image update is selected in line:",line.strip())
+                            sys.exit()
+            else:
+                if firmware_type.upper() == firmwareType:
+                    if model_name in model_count:
+                        model_count[model_name] += 1
+                    else:
+                        model_count[model_name] = 1
+                        firmware_info[model_name] = [firmware_version, file_name_org]
     for k,v in model_count.items():
         if int(v) == 1:
             firmware_details[k] = [firmware_info[k][0], firmware_info[k][1]]
@@ -638,29 +674,47 @@ def FTD_duplicates(firmwareType, firmware_lines, model_count, firmware_details):
 
 #update_BMC is wrapper funtion that parses FirmwareDeploy.txt and ip/hostname along with its credentials
 #and calls final_bmc to do update, this function also returns Update Status report
-def update_BMC(update_list, target_list, ip_list, filename,choice_Force,choice_Debug):
+def update_BMC(update_list, target_list, ip_list, filename, choice_Force, choice_Debug, backup_image):
     global not_Done
     bmc_success_status = []
     flag=False
     target_list_copy = {}
-    models_present={"Cray XD295v_XD220v_XD225v":0,"Cray XD670":0}
+    models_present={}
     for key in target_list:
         ip_addr = target_list[key]['IP Address']
         if ip_addr in target_list_copy:
             print("INFO: IP Address:",ip_addr,", HostName:",target_list[key]["HostName"],"and FQDN:",target_list[key]["FQDN"],"must be of a single cluster only")
             continue
         else:
-            target_list_copy[ip_addr] = {"BMC Ver": target_list[key]['BMC Ver'], "Server Model": target_list[key]['Model']} 
-            if (target_list[key]['Model']=="HPE Cray XD220v" or target_list[key]['Model']=="HPE Cray XD225v" or target_list[key]['Model']=="HPE Cray XD295v"):
-                if "Cray XD295v_XD220v_XD225v" not in models_present:
-                    models_present["Cray XD295v_XD220v_XD225v"]=1
+            if backup_image:
+                if target_list[key]['Model']!="HPE Cray XD670":
+                    continue
                 else:
-                    models_present["Cray XD295v_XD220v_XD225v"]+=1
-            elif target_list[key]['Model']=="HPE Cray XD670":
-                if "Cray XD670" not in models_present:
-                    models_present["Cray XD670"]=1
-                else:
-                    models_present["Cray XD670"]+=1
+                    target_list_copy[ip_addr] = {"BMC Backup Ver": target_list[key]['BMC Backup Ver'], "Server Model": "HPE Cray XD670"}
+                    if "Cray XD670" not in models_present:
+                        models_present["Cray XD670"]=1
+                    else:
+                        models_present["Cray XD670"]+=1
+            else:
+                target_list_copy[ip_addr] = {"BMC Ver": target_list[key]['BMC Ver'], "Server Model": target_list[key]['Model']}  
+                if (target_list[key]['Model']=="HPE Cray XD220v" or target_list[key]['Model']=="HPE Cray XD225v" or target_list[key]['Model']=="HPE Cray XD295v"):
+                    if "Cray XD295v_XD220v_XD225v" not in models_present:
+                        models_present["Cray XD295v_XD220v_XD225v"]=1
+                    else:
+                        models_present["Cray XD295v_XD220v_XD225v"]+=1
+                elif target_list[key]['Model']=="HPE Cray XD670":
+                    if "Cray XD670" not in models_present:
+                        models_present["Cray XD670"]=1
+                    else:
+                        models_present["Cray XD670"]+=1
+                elif target_list[key]['Model']=="HPE Cray XD665":
+                    if "Cray XD665" not in models_present:
+                        models_present["Cray XD665"]=1
+                    else:
+                        models_present["Cray XD665"]+=1
+    if len(target_list_copy)==0 and backup_image: 
+        print("Exitting as backup_image update is selected but there are no Cray XD670 systems in input file")
+        sys.exit()
     print("****INFO: BMC Update Proceeding for: ",end="")
     items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
     print(items)
@@ -670,14 +724,20 @@ def update_BMC(update_list, target_list, ip_list, filename,choice_Force,choice_D
     threads = []
     model_count = {}
     firmware_details = {}
-    firmware_details = FTD_duplicates("BMC", lines, model_count, firmware_details)
-    for model_name,firmware_detail in firmware_details.items():
-        bmc_file = firmware_detail[1].splitlines()[0]
-        for ip in list(target_list_copy):
+    firmware_details = FTD_duplicates("BMC", lines, model_count, firmware_details, backup_image)
+    for ip in list(target_list_copy):
+        if backup_image:
+            if target_list_copy[ip]["Server Model"]=="HPE Cray XD670": existing_Version = target_list_copy[ip]["BMC Backup Ver"]  
+            else: continue 
+        else:
+            existing_Version = target_list_copy[ip]["BMC Ver"]  
+        model_ip = target_list_copy[ip]["Server Model"]
+        model_entry_found=False
+        for model_name,firmware_detail in firmware_details.items():
+            bmc_file = firmware_detail[1].splitlines()[0]
             try:
-                existing_Version = target_list_copy[ip]["BMC Ver"]        
-                model_ip = target_list_copy[ip]["Server Model"]
                 if(model_name == model_ip):
+                    model_entry_found=True
                     if checkFile(bmc_file):
                         if(existing_Version != firmware_detail[0] or choice_Force ):
                             flag=True
@@ -710,12 +770,12 @@ def update_BMC(update_list, target_list, ip_list, filename,choice_Force,choice_D
                                     except:
                                         ip_list[IP_HostName_FQDN[ip]["FQDN"]]["Update_Nature"] = "Not Same"
                             try:
-                                thread = threading.Thread(target = call_bmc_function, args = (ip, ip_list_cpy[ip]["username"], ip_list_cpy[ip]["password"], bmc_file ,bmc_success_status,ip_list[ip]["Model"],choice_Debug))
+                                thread = threading.Thread(target = call_bmc_function, args = (ip, ip_list_cpy[ip]["username"], ip_list_cpy[ip]["password"], bmc_file ,bmc_success_status,ip_list[ip]["Model"],choice_Debug, backup_image))
                             except:
                                 try:
-                                    thread = threading.Thread(target = call_bmc_function, args = (IP_HostName_FQDN[ip]["HostName"], ip_list_cpy[IP_HostName_FQDN[ip]["HostName"]]["username"], ip_list_cpy[IP_HostName_FQDN[ip]["HostName"]]["password"], bmc_file ,bmc_success_status,ip_list[IP_HostName_FQDN[ip]["HostName"]]["Model"], choice_Debug))
+                                    thread = threading.Thread(target = call_bmc_function, args = (IP_HostName_FQDN[ip]["HostName"], ip_list_cpy[IP_HostName_FQDN[ip]["HostName"]]["username"], ip_list_cpy[IP_HostName_FQDN[ip]["HostName"]]["password"], bmc_file ,bmc_success_status,ip_list[IP_HostName_FQDN[ip]["HostName"]]["Model"], choice_Debug, backup_image))
                                 except:
-                                    thread = threading.Thread(target = call_bmc_function, args = (IP_HostName_FQDN[ip]["FQDN"], ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]["username"], ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]["password"], bmc_file ,bmc_success_status,ip_list[IP_HostName_FQDN[ip]["FQDN"]]["Model"], choice_Debug))
+                                    thread = threading.Thread(target = call_bmc_function, args = (IP_HostName_FQDN[ip]["FQDN"], ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]["username"], ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]["password"], bmc_file ,bmc_success_status,ip_list[IP_HostName_FQDN[ip]["FQDN"]]["Model"], choice_Debug, backup_image))
                             thread.start()
                             threads.append(thread)
                             try:
@@ -729,43 +789,63 @@ def update_BMC(update_list, target_list, ip_list, filename,choice_Force,choice_D
                         else:
                             print("WARNING: Update is halted because Force argument is not set, as the version is same as suggested for the cluster having IP:",ip,", Hostname:",IP_HostName_FQDN[ip]["HostName"],"and FQDN: ",IP_HostName_FQDN[ip]["FQDN"] )
                             not_Done+=1
-                            if target_list_copy[ip]["Server Model"] == "HPE Cray XD220v" or target_list_copy[ip]['Server Model']=="HPE Cray XD225v" or target_list_copy[ip]['Server Model']=="HPE Cray XD295v":
+                            if model_ip == "HPE Cray XD220v" or model_ip=="HPE Cray XD225v" or model_ip=="HPE Cray XD295v":
                                 models_present["Cray XD295v_XD220v_XD225v"]-=1
-                            elif target_list_copy[ip]['Server Model']=="HPE Cray XD670":
+                            elif model_ip=="HPE Cray XD670":
                                 models_present["Cray XD670"]-=1
+                            elif model_ip=="HPE Cray XD665":
+                                models_present["Cray XD665"]-=1
                             print("****INFO: BMC Update Proceeding for: ",end="")
                             items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
                             print(items)
-                            continue
+                            break
                     else:
-                        print("WARNING: Error in the filename for "+ model_name+" update skipped for the cluster having IP:",ip,", Hostname:"+IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"])
+                        print("WARNING: Error "+bmc_file+" not found for "+ model_name+", so update skipped for the cluster having IP:",ip,", Hostname:"+IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"])
                         not_Done+=1
-                        if target_list_copy[ip]["Server Model"] == "HPE Cray XD220v" or target_list_copy[ip]['Server Model']=="HPE Cray XD225v" or target_list_copy[ip]['Server Model']=="HPE Cray XD295v":
+                        if model_ip == "HPE Cray XD220v" or model_ip=="HPE Cray XD225v" or model_ip=="HPE Cray XD295v":
                             models_present["Cray XD295v_XD220v_XD225v"]-=1
-                        elif target_list_copy[ip]['Server Model']=="HPE Cray XD670":
+                        elif model_ip=="HPE Cray XD670":
                             models_present["Cray XD670"]-=1
+                        elif model_ip=="HPE Cray XD665":
+                            models_present["Cray XD665"]-=1
                         print("****INFO: BMC Update Proceeding for: ",end="")
                         items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
                         print(items)
-                        continue
+                        break
+                
             except:
                 print("** Cluster having IP:",ip,", Hostname:",IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"],"is not reachable!!!")
                 not_Done+=1
-                if target_list_copy[ip]["Server Model"] == "HPE Cray XD220v" or target_list_copy[ip]['Server Model']=="HPE Cray XD225v" or target_list_copy[ip]['Server Model']=="HPE Cray XD295v":
+                if model_ip == "HPE Cray XD220v" or model_ip=="HPE Cray XD225v" or model_ip=="HPE Cray XD295v":
                     models_present["Cray XD295v_XD220v_XD225v"]-=1
-                elif target_list_copy[ip]['Server Model']=="HPE Cray XD670":
+                elif model_ip=="HPE Cray XD670":
                     models_present["Cray XD670"]-=1
+                elif model_ip=="HPE Cray XD665":
+                    models_present["Cray XD665"]-=1
                 print("****INFO: BMC Update Proceeding for: ",end="")
                 items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
                 print(items)
                 flag=False
-                continue
+                break
 
-
+        if not model_entry_found: 
+            print("WARNING: Missing filename for "+ model_ip+" model in",filename,"and update skipped for the cluster having IP:",ip,", Hostname:"+IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"])
+            not_Done+=1
+            if model_ip == "HPE Cray XD220v" or model_ip=="HPE Cray XD225v" or model_ip=="HPE Cray XD295v":
+                models_present["Cray XD295v_XD220v_XD225v"]-=1
+            elif model_ip=="HPE Cray XD670":
+                models_present["Cray XD670"]-=1
+            elif model_ip=="HPE Cray XD665":
+                models_present["Cray XD665"]-=1
+            print("****INFO: BMC Update Proceeding for: ",end="")
+            items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
+            print(items)
+            break
     for thread in threads:
         thread.join()
-    if not len(target_list)==not_Done:
-        print("**** INFO: Total",len(target_list)-not_Done,"done ****")
+    # print(len(target_list_copy), not_Done, "------")
+    if not len(target_list_copy)==not_Done:
+        print("**** INFO: Total",len(target_list_copy)-not_Done,"done ****")
         print("INFO: Please wait for reports to know the status of firmware update.")
     fp.close
     if flag:
@@ -776,12 +856,12 @@ def update_BMC(update_list, target_list, ip_list, filename,choice_Force,choice_D
         key = "Pre-Ver"
         if key in ip_list[ipadd].keys():
             try:
-                thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[ipadd]["username"], ip_list[ipadd]["password"], ip_list[ipadd]["Pre-Ver"], ip_list[ipadd]["Model"],ip_list[ipadd]["Update_Nature"],"BMC",bmc_success_status,[],[],[]))
+                thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[ipadd]["username"], ip_list[ipadd]["password"], ip_list[ipadd]["Pre-Ver"], ip_list[ipadd]["Model"],ip_list[ipadd]["Update_Nature"],"BMC",bmc_success_status,[],[],[],backup_image))
             except:
                 try:
-                    thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["username"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["password"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Pre-Ver"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Model"],ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Update_Nature"],"BMC",bmc_success_status,[],[],[]))
+                    thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["username"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["password"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Pre-Ver"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Model"],ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Update_Nature"],"BMC",bmc_success_status,[],[],[],backup_image))
                 except:
-                    thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["username"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["password"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Pre-Ver"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Model"],ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Update_Nature"],"BMC",bmc_success_status,[],[],[]))
+                    thread = threading.Thread(target = UpdateDetails, args = (ipadd, update_list, ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["username"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["password"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Pre-Ver"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Model"],ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Update_Nature"],"BMC",bmc_success_status,[],[],[],backup_image))
     
             thread.start()
             threads.append(thread)
@@ -790,7 +870,7 @@ def update_BMC(update_list, target_list, ip_list, filename,choice_Force,choice_D
 
 #update_BIOS is wrapper funtion that parses FirmwareDeploy.txt and ip/hostname along with its credentials
 #and calls final_bios function to do update
-def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,choice_Force,choice_Debug):
+def update_BIOS(update_list, target_list, ip_list, filename, choice_powercycle, choice_Force, choice_Debug, backup_image):
     global not_Done
     flag=False
     reset_list = {}
@@ -799,24 +879,46 @@ def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,ch
     system_reset_status = []
     bios_success_status = []
     target_list_copy = {}
-    models_present={"Cray XD295v_XD220v_XD225v":0,"Cray XD670":0}
+    models_present={}
     for key in target_list:
         ip_addr = target_list[key]['IP Address']
         if ip_addr in target_list_copy:
             print("INFO:",ip_addr,"and",target_list[key]["HostName"],"must be of a single cluster only")
             continue
         else:
-            target_list_copy[ip_addr] = {"BIOS Ver": target_list[key]['BIOS Ver'], "Server Model": target_list[key]['Model']}
-            if (target_list[key]['Model']=="HPE Cray XD220v" or target_list[key]['Model']=="HPE Cray XD225v" or target_list[key]['Model']=="HPE Cray XD295v"):
-                if "Cray XD295v_XD220v_XD225v" not in models_present:
-                    models_present["Cray XD295v_XD220v_XD225v"]=1
+            if backup_image:
+                if target_list[key]['Model']!="HPE Cray XD670":
+                    continue
                 else:
-                    models_present["Cray XD295v_XD220v_XD225v"]+=1
-            elif target_list[key]['Model']=="HPE Cray XD670":
-                if "Cray XD670" not in models_present:
-                    models_present["Cray XD670"]=1
-                else:
-                    models_present["Cray XD670"]+=1
+                    try:
+                        target_list_copy[ip_addr] = {"BIOS Backup Ver": target_list[key]['BIOS Backup Ver'], "Server Model": "HPE Cray XD670"}
+                    except KeyError:
+                        print("WARNING: The version of BIOS Backup Firmware is not getting reflected in",ip_addr,"FirmwareInventory/BIOS2 API. Hence, setting the Pre-Ver to 'NA'")
+                        target_list_copy[ip_addr] = {"BIOS Backup Ver": "NA", "Server Model": "HPE Cray XD670"}
+                    if "Cray XD670" not in models_present:
+                        models_present["Cray XD670"]=1
+                    else:
+                        models_present["Cray XD670"]+=1
+            else:
+                target_list_copy[ip_addr] = {"BIOS Ver": target_list[key]['BIOS Ver'], "Server Model": target_list[key]['Model']}
+                if (target_list[key]['Model']=="HPE Cray XD220v" or target_list[key]['Model']=="HPE Cray XD225v" or target_list[key]['Model']=="HPE Cray XD295v"):
+                    if "Cray XD295v_XD220v_XD225v" not in models_present:
+                        models_present["Cray XD295v_XD220v_XD225v"]=1
+                    else:
+                        models_present["Cray XD295v_XD220v_XD225v"]+=1
+                elif target_list[key]['Model']=="HPE Cray XD670":
+                    if "Cray XD670" not in models_present:
+                        models_present["Cray XD670"]=1
+                    else:
+                        models_present["Cray XD670"]+=1
+                elif target_list[key]['Model']=="HPE Cray XD665":
+                    if "Cray XD665" not in models_present:
+                        models_present["Cray XD665"]=1
+                    else:
+                        models_present["Cray XD665"]+=1
+    if len(target_list_copy)==0 and backup_image: 
+        print("Exitting as backup_image update is selected but there are no Cray XD670 systems in input file")
+        sys.exit()
     print("****INFO: BIOS Update Proceeding for: ",end="")
     items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
     print(items)
@@ -825,15 +927,21 @@ def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,ch
     lines = fp.readlines()
     model_count = {}
     firmware_details = {}
-    firmware_details = FTD_duplicates("BIOS", lines, model_count, firmware_details)
+    firmware_details = FTD_duplicates("BIOS", lines, model_count, firmware_details, backup_image)
     
-    for model_name,firmware_detail in firmware_details.items():
-        bios_file = firmware_detail[1].splitlines()[0]
-        for ip in list(target_list_copy):
+    for ip in list(target_list_copy):
+        if backup_image:
+            if target_list_copy[ip]["Server Model"]=="HPE Cray XD670": existing_Version = target_list_copy[ip]["BIOS Backup Ver"]  
+            else: continue 
+        else:
+            existing_Version = target_list_copy[ip]["BIOS Ver"] 
+        model_ip = target_list_copy[ip]["Server Model"]
+        model_entry_found=False
+        for model_name,firmware_detail in firmware_details.items():
+            bios_file = firmware_detail[1].splitlines()[0]
             try:
-                existing_Version = target_list_copy[ip]["BIOS Ver"]
-                model_ip = target_list_copy[ip]["Server Model"]
                 if(model_name == model_ip):
+                    model_entry_found=True
                     if checkFile(bios_file):
                         if(existing_Version != firmware_detail[0] or choice_Force):
                             flag=True
@@ -866,12 +974,12 @@ def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,ch
                                     except:
                                         ip_list[IP_HostName_FQDN[ip]["FQDN"]]["Update_Nature"] = "Not Same"
                             try:
-                                thread = threading.Thread(target = call_bios_function, args = (ip, ip_list_cpy[ip]["username"], ip_list_cpy[ip]["password"], bios_file , bios_success_status,ip_list[ip]["Model"],choice_Debug))
+                                thread = threading.Thread(target = call_bios_function, args = (ip, ip_list_cpy[ip]["username"], ip_list_cpy[ip]["password"], bios_file , bios_success_status,ip_list[ip]["Model"],choice_Debug, backup_image))
                             except:
                                 try:
-                                    thread = threading.Thread(target = call_bios_function, args = (IP_HostName_FQDN[ip]["HostName"], ip_list_cpy[IP_HostName_FQDN[ip]["HostName"]]["username"], ip_list_cpy[IP_HostName_FQDN[ip]["HostName"]]["password"], bios_file , bios_success_status,ip_list[IP_HostName_FQDN[ip]["HostName"]]["Model"],choice_Debug))
+                                    thread = threading.Thread(target = call_bios_function, args = (IP_HostName_FQDN[ip]["HostName"], ip_list_cpy[IP_HostName_FQDN[ip]["HostName"]]["username"], ip_list_cpy[IP_HostName_FQDN[ip]["HostName"]]["password"], bios_file , bios_success_status,ip_list[IP_HostName_FQDN[ip]["HostName"]]["Model"],choice_Debug, backup_image))
                                 except:
-                                    thread = threading.Thread(target = call_bios_function, args = (IP_HostName_FQDN[ip]["FQDN"], ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]["username"], ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]["password"], bios_file , bios_success_status,ip_list[IP_HostName_FQDN[ip]["FQDN"]]["Model"],choice_Debug))                                   
+                                    thread = threading.Thread(target = call_bios_function, args = (IP_HostName_FQDN[ip]["FQDN"], ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]["username"], ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]["password"], bios_file , bios_success_status,ip_list[IP_HostName_FQDN[ip]["FQDN"]]["Model"],choice_Debug, backup_image))                                   
                             thread.start()
                             threads.append(thread)
                             try:
@@ -883,45 +991,64 @@ def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,ch
                                     del ip_list_cpy[IP_HostName_FQDN[ip]["FQDN"]]
 
                         else:
-                            not_Done+=1
-                            if target_list_copy[ip]["Server Model"] == "HPE Cray XD220v" or target_list_copy[ip]['Server Model']=="HPE Cray XD225v" or target_list_copy[ip]['Server Model']=="HPE Cray XD295v":
-                                models_present["Cray XD295v_XD220v_XD225v"]-=1
-                            elif target_list_copy[ip]['Server Model']=="HPE Cray XD670":
-                                models_present["Cray XD670"]-=1
                             print("WARNING: Update is halted because Force argument is not set, as the version is same as suggested for the cluster having IP:",ip,", Hostname:",IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"] )
+                            not_Done+=1
+                            if model_ip== "HPE Cray XD220v" or model_ip=="HPE Cray XD225v" or model_ip=="HPE Cray XD295v":
+                                models_present["Cray XD295v_XD220v_XD225v"]-=1
+                            elif model_ip=="HPE Cray XD670":
+                                models_present["Cray XD670"]-=1
+                            elif model_ip=="HPE Cray XD665":
+                                models_present["Cray XD665"]-=1
+                            
                             print("****INFO: BIOS Update Proceeding for: ",end="")
                             items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
                             print(items)
-                            continue
+                            break
                     else:
-                        print("WARNING: Error in the filename for",model_name,"update skipped for the cluster having IP:",ip,", Hostname:",IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"])
+                        print("WARNING: Error "+bios_file+" not found for "+model_name+", so update skipped for the cluster having IP:",ip,", Hostname:",IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"])
                         not_Done+=1
-                        if target_list_copy[ip]["Server Model"] == "HPE Cray XD220v" or target_list_copy[ip]['Server Model']=="HPE Cray XD225v" or target_list_copy[ip]['Server Model']=="HPE Cray XD295v":
+                        if model_ip == "HPE Cray XD220v" or model_ip=="HPE Cray XD225v" or model_ip=="HPE Cray XD295v":
                             models_present["Cray XD295v_XD220v_XD225v"]-=1
-                        elif target_list_copy[ip]['Server Model']=="HPE Cray XD670":
+                        elif model_ip=="HPE Cray XD670":
                             models_present["Cray XD670"]-=1
+                        elif model_ip=="HPE Cray XD665":
+                            models_present["Cray XD665"]-=1
                         print("****INFO: BIOS Update Proceeding for: ",end="")
                         items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
                         print(items)
-                        continue
+                        break
             except:
                 print("**ERROR: Cluster having IP:"+ip,", Hostname:",IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"],"is not reachable!!!")
                 flag =False
                 not_Done+=1
-                if target_list_copy[ip]["Server Model"] == "HPE Cray XD220v" or target_list_copy[ip]['Server Model']=="HPE Cray XD225v" or target_list_copy[ip]['Server Model']=="HPE Cray XD295v":
+                if target_list_copy[ip]["Server Model"] == "HPE Cray XD220v" or model_ip=="HPE Cray XD225v" or model_ip=="HPE Cray XD295v":
                     models_present["Cray XD295v_XD220v_XD225v"]-=1
-                elif target_list_copy[ip]['Server Model']=="HPE Cray XD670":
+                elif model_ip=="HPE Cray XD670":
                     models_present["Cray XD670"]-=1
+                elif model_ip=="HPE Cray XD665":
+                    models_present["Cray XD665"]-=1
                 print("****INFO: BIOS Update Proceeding for: ",end="")
                 items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
                 print(items)
-                continue
-
+                break
+        if not model_entry_found: 
+            print("WARNING: Missing filename for "+ model_ip+" model in",filename,"and update skipped for the cluster having IP:",ip,", Hostname:"+IP_HostName_FQDN[ip]["HostName"],"and FQDN:",IP_HostName_FQDN[ip]["FQDN"])
+            not_Done+=1
+            if model_ip == "HPE Cray XD220v" or model_ip=="HPE Cray XD225v" or model_ip=="HPE Cray XD295v":
+                models_present["Cray XD295v_XD220v_XD225v"]-=1
+            elif model_ip=="HPE Cray XD670":
+                models_present["Cray XD670"]-=1
+            elif model_ip=="HPE Cray XD665":
+                models_present["Cray XD665"]-=1
+            print("****INFO: BIOS Update Proceeding for: ",end="")
+            items = ', '.join(f'{value} {key} models' for key, value in models_present.items())
+            print(items)
+            break
 
     for thread in threads:
         thread.join()
-    if not len(target_list)==not_Done:
-        print("**** INFO: Total",len(target_list)-not_Done,"done ****")
+    if not len(target_list_copy)==not_Done:
+        print("**** INFO: Total",len(target_list_copy)-not_Done,"done ****")
         print("INFO: Please wait for reports to know the status of firmware update.")
     fp.close
     if flag:
@@ -939,18 +1066,18 @@ def update_BIOS(update_list, target_list, ip_list, filename,choice_powercycle,ch
                 key = "Pre-Ver"
                 if key in ip_list[ipadd].keys():
                     try:
-                        thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[ipadd]["username"], ip_list[ipadd]["password"], ip_list[ipadd]["Pre-Ver"],ip_list[ipadd]["Model"],ip_list[ipadd]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status))
+                        thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[ipadd]["username"], ip_list[ipadd]["password"], ip_list[ipadd]["Pre-Ver"],ip_list[ipadd]["Model"],ip_list[ipadd]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status,backup_image))
                     except:
                         try:
-                            thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["username"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["password"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Pre-Ver"],ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Model"],ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status))
+                            thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["username"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["password"], ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Pre-Ver"],ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Model"],ip_list[IP_HostName_FQDN[ipadd]["HostName"]]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status,backup_image))
                         except:
-                            thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["username"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["password"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Pre-Ver"],ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Model"],ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status))
+                            thread = threading.Thread(target = UpdateDetails, args=(ipadd, update_list, ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["username"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["password"], ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Pre-Ver"],ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Model"],ip_list[IP_HostName_FQDN[ipadd]["FQDN"]]["Update_Nature"],"BIOS",[],bios_success_status,chassis_reset_status,system_reset_status,backup_image))
                     thread.start()
                     threads.append(thread)
             for thread in threads:
                 thread.join()
         else:
-            print("INFO: The version changes for BIOS will not be reflected unless we complete an Chassis reset and System reset")
+            print("INFO: The version changes for BIOS will not be reflected unless we complete a Chassis reset and System reset")
             print("INFO: Please use the -P or --Power for the BIOS version change. It may take around few minutes for version to reflect ")
             print("INFO: Perform Inventory report to know the status")
             print("INFO: Exiting...")
@@ -986,12 +1113,13 @@ The '-z' option will run the UPDATE FIRMWARE commands and generate reports.
 The '-P' option will have to be set do AC Powercycle to ensure the firmware update
 versions are reflected
 The '-F' option will have to be set for force install
+The -bi' option will have to be set for flashing the backup images of the nodes having dual BIOS and dual BMC. 
 """
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=description_Details_v1,formatter_class=argparse.RawTextHelpFormatter)
-    parser.version = '2.1'
-    parser.add_argument('-p', '--password', action='store', help="session password, this can be used when all nodes have common password")
-    parser.add_argument('-u', '--username', action='store', help="session username, this can be used when all nodes have common username")
+    parser.version = '3.1'
+    parser.add_argument('-p', '--password', action='store', help="session password can be used when all nodes have a common password.")
+    parser.add_argument('-u', '--username', action='store', help="session username can be used when all nodes have a common username.")
     parser.add_argument('-t', '--target', action='store', help='''Target IP_HostName_FQDN for report or Update.
 Multiple Modes:
     -t IP_HostName_FQDN,Username,Password - to specify one target.
@@ -1008,6 +1136,7 @@ Multiple Modes:
     -c BMC - to choose BMC Update.
     -c BIOS - to choose BIOS Update
                            ''')
+    parser.add_argument('-bi','--backup_image', action='store_true', help="Flashes the backup image of the respective selected component BMC or BIOS only for Cray XD670 models as they have dual BIOS and dual BMC. Skips for Cray XD220,  XD225, XD295 and XD665 models.")
     parser.add_argument('-P', '--Power', action='store_true', help="Applies AC Power Cycles when required for update, if not applied the updates will not be reflected")
     parser.add_argument('-F', '--Force', action='store_true', help="Forces install when the firmware version to be updated is same the existing firmware version.")
     parser.add_argument('-a', '--all', action='store_true', help="It shows all Firmware details")
@@ -1107,8 +1236,11 @@ Multiple Modes:
             if len(ip_list)>64:
                 print("INFO: Only first 64 IP Address/HostNames are being processed!!!")
                 ip_list = ip_list[:64]
+            if args.backup_image:
+                args.all=True
+                
             for ipadd in ip_list.keys():
-                thread = threading.Thread(target=get_FirmwareInventory, args=(ipadd, target_list, ip_list[ipadd]["username"], ip_list[ipadd]["password"], False, False, True))
+                thread = threading.Thread(target=get_FirmwareInventory, args=(ipadd, target_list, ip_list[ipadd]["username"], ip_list[ipadd]["password"], args.all, False, False))
                 thread.start()
                 threads.append(thread)
             for thread in threads:
@@ -1130,7 +1262,7 @@ Multiple Modes:
                 firmware_Type = input("A)BMC B)BIOS \n")
             if(firmware_Type.lower() =="a"  ):
                 print("INFO: BMC Update is Selected")
-                update_BMC(update_list, target_list, ip_list, "FirmwareToDeploy.txt",args.Force, args.Debug)
+                update_BMC(update_list, target_list, ip_list, "FirmwareToDeploy.txt",args.Force, args.Debug, args.backup_image)
                 if len(update_list) > 0 :
                     print("HPE Firmware Update Status Report")
                     time_Display(update_list,True)
@@ -1162,7 +1294,7 @@ Multiple Modes:
                     print("INFO: AC Power Cycling is not chosen for BIOS Update")
                 else:
                     print("INFO: BIOS Update may take upto 20-25 minutes as it includes AC Power Cycling and Update Status Display")
-                update_BIOS(update_list,target_list,ip_list,"FirmwareToDeploy.txt",args.Power,args.Force, args.Debug)
+                update_BIOS(update_list,target_list,ip_list,"FirmwareToDeploy.txt",args.Power,args.Force, args.Debug, args.backup_image)
                 if len(update_list) > 0 :
                     print("HPE Firmware Update Status Report")
                     time_Display(update_list,True)
@@ -1194,7 +1326,5 @@ Multiple Modes:
 
     else:
         print("ERROR: Give parameters for report or update, use --help for more information")
-
-
 
 
