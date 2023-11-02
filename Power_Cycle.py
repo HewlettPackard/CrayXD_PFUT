@@ -2,14 +2,13 @@ import time
 import redfish
 import threading
 
-#debug=True
-debug=False
 system_reset_failed=[]
 chassis_reset_failed=[]
 
 def system_reset(BMC_IP,USER,PWD,system_reset_status,choice_Debug):
-    task_status = ""
     try:
+        task_status = ""
+        debug=False
         REST_OBJ = redfish.redfish_client(base_url='https://'+BMC_IP, username=USER, password=PWD, default_prefix='/redfish/v1')
         REST_OBJ.login(auth="session")
         body = {"ResetType": "ForceRestart"}
@@ -30,13 +29,12 @@ def system_reset(BMC_IP,USER,PWD,system_reset_status,choice_Debug):
         while(task_status != "Completed" and count < 120):
             try:
                 task_status_dict = REST_OBJ.get(Task).dict
-                if debug: print("task_status_dict: %s",task_status_dict)
+                if debug:print("task_status_dict: %s",task_status_dict)
                 task_status = task_status_dict["TaskState"]
                 if debug:print("task_status: %s" % task_status)
             except:
                 if count%60==0:
-                    if debug:
-                        print("ERROR: Failed in GET call of Task API to Computer.Reset for", BMC_IP)
+                    print("ERROR: Failed in GET call of Task API to Computer.Reset for", BMC_IP)
                 else:pass
                 
             time.sleep(10)
@@ -49,7 +47,8 @@ def system_reset(BMC_IP,USER,PWD,system_reset_status,choice_Debug):
             print("DEBUG: System Reset failed for", BMC_IP)
         system_reset_failed.append(BMC_IP)
         return
-
+    # print(task_status,"task_status value in systems reset")
+    # print(choice_Debug,"choice_Debug value in systems reset")
 
     if (task_status != "Completed"):
         if choice_Debug:
@@ -67,6 +66,7 @@ def system_reset(BMC_IP,USER,PWD,system_reset_status,choice_Debug):
 
 def chassis_reset(BMC_IP,USER,PWD,chassis_reset_status,choice_Debug):
     try:
+        debug=False
         task_status = ""
         count = 0
         REST_OBJ = redfish.redfish_client(base_url='https://'+BMC_IP, username=USER, password=PWD, default_prefix='/redfish/v1')
@@ -91,8 +91,7 @@ def chassis_reset(BMC_IP,USER,PWD,chassis_reset_status,choice_Debug):
                 task_status = task_status_dict["TaskState"]
             except:
                 if count%60==0:
-                    if debug:
-                        print("ERROR: Failed in GET call of Task API to Chassis.Reset for", BMC_IP)
+                    print("ERROR: Failed in GET call of Task API to Chassis.Reset for", BMC_IP)
                 else:
                     pass
                 
@@ -106,7 +105,8 @@ def chassis_reset(BMC_IP,USER,PWD,chassis_reset_status,choice_Debug):
         chassis_reset_failed.append(BMC_IP)
         return
 
-
+    # print(task_status,"task_status value in chassis reset")
+    # print(choice_Debug,"choice_Debug value in chassis reset")
     if (task_status != "Completed"):
         if choice_Debug:
             print("DEBUG: Failed Chassis Reset of " + BMC_IP)
@@ -122,9 +122,9 @@ def chassis_reset(BMC_IP,USER,PWD,chassis_reset_status,choice_Debug):
         pass
 
 def Power_Cycling(reset_list,chassis_reset_status,system_reset_status,choice_Debug):   
-    
     print("INFO: Performing System Reset in background. Please wait for some time to know the status of System Reset.")
     threads = []
+    #print("reset_list is ", reset_list)
     for ipadd in reset_list.keys():
             thread = threading.Thread(target = system_reset, args=(ipadd, reset_list[ipadd]["username"], reset_list[ipadd]["password"],system_reset_status,choice_Debug))
             thread.start()
